@@ -11,6 +11,20 @@ defmodule Pinchflat.SlowIndexing.FileFollowerServerTest do
     {:ok, %{pid: pid, tmpfile: tmpfile}}
   end
 
+  describe "start_link" do
+    test "starts successfully with no arguments" do
+      assert {:ok, pid} = FileFollowerServer.start_link()
+      assert Process.alive?(pid)
+      Process.exit(pid, :kill)
+    end
+
+    test "starts successfully with watching_pid option" do
+      assert {:ok, pid} = FileFollowerServer.start_link(watching_pid: self())
+      assert Process.alive?(pid)
+      Process.exit(pid, :kill)
+    end
+  end
+
   describe "watch_file" do
     test "calls the handler for each existing line in the file", %{pid: pid, tmpfile: tmpfile} do
       File.write!(tmpfile, "line1\nline2")

@@ -13,12 +13,18 @@ defmodule Pinchflat.SlowIndexing.FileFollowerServer do
 
   # Client API
   @doc """
-  Starts the file follower server
+  Starts the file follower server.
+
+  Accepts an optional keyword list of options:
+    - `watching_pid`: A PID to monitor. If provided, the server will not stop
+      due to inactivity while this process is still alive. This is useful for
+      monitoring a process that is blocked waiting for an external command to
+      complete (e.g., a yt-dlp indexing run). Defaults to nil.
 
   Returns {:ok, pid} or {:error, reason}
   """
-  def start_link() do
-    GenServer.start_link(__MODULE__, [])
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts)
   end
 
   @doc """
@@ -41,22 +47,25 @@ defmodule Pinchflat.SlowIndexing.FileFollowerServer do
 
   # Server Callbacks
   @impl true
-  def init(_opts) do
+  def init(opts) do
     # Start with a blank state because, based on the common calling
     # pattern for this module, we'll need a reference to the server's
     # PID before we start watching any files so we can later stop the
     # server gracefully.
-    {:ok, %{}}
+    watching_pid = Keyword.get(opts, :watching_pid, nil)
+
+    {:ok, %{watching_pid: watching_pid}}
   end
 
   @impl true
-  def handle_cast({:watch_file, filepath, handler}, _old_state) do
+  def handle_cast({:watch_file, filepath, handler}, old_state) do
     {:ok, io_device} = :file.open(filepath, [:raw, :read_ahead, :binary])
 
     state = %{
       io_device: io_device,
       last_activity: DateTime.utc_now(),
-      handler: handler
+      handler: handler,
+      watching_pid: old_state.watching_pid
     }
 
     Process.send(self(), :read_new_lines, [])
@@ -76,9 +85,15 @@ defmodule Pinchflat.SlowIndexing.FileFollowerServer do
   def handle_info(:read_new_lines, state) do
     last_activity = state.last_activity
 
-    # If there's no new lines written for a certain amount of time, stop the server
-    if DateTime.diff(DateTime.utc_now(), last_activity, :millisecond) > @activity_timeout_ms do
-      Logger.debug("No activity for #{@activity_timeout_ms}ms. Requesting stop.")
+    inactive = DateTime.diff(DateTime.utc_now(), last_activity, :millisecond) > @activity_timeout_ms
+    process_done = not process_alive?(state.watching_pid)
+
+    # If there's no new lines written for a certain amount of time AND the watching
+    # process is no longer alive, stop the server. If the watching process is still
+    # alive (eg: blocked in System.cmd waiting for yt-dlp to finish enumerating items),
+    # keep waiting so we don't prematurely stop during large playlist indexing.
+    if inactive && process_done do
+      Logger.debug("No activity for #{@activity_timeout_ms}ms and watching process is done. Requesting stop.")
       stop(self())
 
       {:noreply, state}
@@ -86,6 +101,9 @@ defmodule Pinchflat.SlowIndexing.FileFollowerServer do
       attempt_process_new_lines(state)
     end
   end
+
+  defp process_alive?(nil), do: false
+  defp process_alive?(pid), do: Process.alive?(pid)
 
   defp attempt_process_new_lines(state) do
     io_device = state.io_device

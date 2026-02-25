@@ -129,7 +129,7 @@ defmodule Pinchflat.SlowIndexing.SlowIndexingHelpers do
   # for a sufficiently long time.
   defp setup_file_watcher_and_kickoff_indexing(source, opts) do
     was_forced = Keyword.get(opts, :was_forced, false)
-    {:ok, pid} = FileFollowerServer.start_link()
+    {:ok, pid} = FileFollowerServer.start_link(watching_pid: self())
 
     handler = fn filepath -> setup_file_follower_watcher(pid, filepath, source) end
     should_use_cookies = Sources.use_cookies?(source, :indexing)

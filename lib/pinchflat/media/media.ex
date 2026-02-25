@@ -52,6 +52,21 @@ defmodule Pinchflat.Media do
   end
 
   @doc """
+  Returns a list of pending media_items (across all sources) that have a
+  recorded `last_error`, meaning a previous download attempt failed.
+
+  These items are candidates for automatic retry.
+
+  Returns [%MediaItem{}, ...]
+  """
+  def list_errored_pending_media_items do
+    MediaQuery.new()
+    |> MediaQuery.require_assoc(:media_profile)
+    |> where(^dynamic(^MediaQuery.pending() and ^MediaQuery.has_error()))
+    |> Repo.all()
+  end
+
+  @doc """
   Returns a list of pending media_items for a given source, where
   pending means the media_item satisfies `MediaQuery.pending`. You
   should really check out that function if you need to know more

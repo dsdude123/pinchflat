@@ -31,6 +31,7 @@ defmodule Pinchflat.Media.MediaQuery do
   def for_source(source), do: dynamic([mi], mi.source_id == ^source.id)
 
   def downloaded, do: dynamic([mi], not is_nil(mi.media_filepath))
+  def has_error, do: dynamic([mi], not is_nil(mi.last_error))
   def download_prevented, do: dynamic([mi], mi.prevent_download == true)
   def culling_prevented, do: dynamic([mi], mi.prevent_culling == true)
   def redownloaded, do: dynamic([mi], not is_nil(mi.media_redownloaded_at))

@@ -9,7 +9,7 @@ defmodule Pinchflat.Downloading.FailedDownloadsRetryWorkerTest do
   describe "perform/1" do
     test "enqueues download jobs for pending media items with errors" do
       source = source_fixture()
-      media_item = media_item_fixture(%{source_id: source.id, last_error: "some error"})
+      media_item = media_item_fixture(%{source_id: source.id, last_error: "some error", media_filepath: nil})
 
       perform_job(FailedDownloadsRetryWorker, %{})
 
@@ -21,7 +21,7 @@ defmodule Pinchflat.Downloading.FailedDownloadsRetryWorkerTest do
 
     test "does not enqueue jobs for pending media items without errors" do
       source = source_fixture()
-      _media_item = media_item_fixture(%{source_id: source.id, last_error: nil})
+      _media_item = media_item_fixture(%{source_id: source.id, last_error: nil, media_filepath: nil})
 
       perform_job(FailedDownloadsRetryWorker, %{})
 

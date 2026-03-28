@@ -26,7 +26,9 @@ defmodule Pinchflat.YtDlp.MediaCollection do
     # `ignore_no_formats_error` is necessary because yt-dlp will error out if
     # the first video has not released yet (ie: is a premier). We don't care about
     # available formats since we're just getting the media details
-    all_command_opts = [:simulate, :skip_download, :ignore_no_formats_error, :ignore_errors, :no_warnings] ++ command_opts
+    all_command_opts =
+      [:simulate, :skip_download, :ignore_no_formats_error, :ignore_errors, :no_warnings] ++ command_opts
+
     use_cookies = Keyword.get(addl_opts, :use_cookies, false)
     output_template = YtDlpMedia.indexing_output_template()
     output_filepath = FilesystemUtils.generate_metadata_tmpfile(:json)

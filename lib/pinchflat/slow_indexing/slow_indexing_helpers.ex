@@ -95,7 +95,20 @@ defmodule Pinchflat.SlowIndexing.SlowIndexingHelpers do
     source = Repo.preload(source, [:media_profile])
     # See the method definition below for more info on how file watchers work
     # (important reading if you're not familiar with it)
-    {:ok, media_attributes} = setup_file_watcher_and_kickoff_indexing(source, opts)
+    media_attributes =
+      case setup_file_watcher_and_kickoff_indexing(source, opts) do
+        {:ok, attrs} ->
+          attrs
+
+        {:error, output, _status} ->
+          Logger.warning(
+            "yt-dlp returned an error for source #{source.id}, " <>
+              "but proceeding with any media items already created by the file follower. Output: #{output}"
+          )
+
+          []
+      end
+
     # Reload because the source may have been updated during the (long-running) indexing process
     # and important settings like `download_media` may have changed.
     source = Repo.reload!(source)

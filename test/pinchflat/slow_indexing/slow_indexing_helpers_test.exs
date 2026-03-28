@@ -302,6 +302,31 @@ defmodule Pinchflat.SlowIndexing.SlowIndexingHelpersTest do
 
       SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
     end
+
+    test "still updates last_indexed_at when yt-dlp returns an error", %{source: source} do
+      stub(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, _opts, _ot, _addl_opts ->
+        {:error, "ERROR: some video is unavailable", 1}
+      end)
+
+      assert [] = SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+
+      source = Repo.reload!(source)
+      assert source.last_indexed_at != nil
+      assert DateTime.diff(DateTime.utc_now(), source.last_indexed_at) < 2
+    end
+
+    test "still enqueues pending downloads when yt-dlp returns an error" do
+      source = source_fixture()
+      media_item = media_item_fixture(source_id: source.id, media_filepath: nil)
+
+      stub(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, _opts, _ot, _addl_opts ->
+        {:error, "ERROR: some video is unavailable", 1}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+
+      assert_enqueued(worker: MediaDownloadWorker, args: %{"id" => media_item.id})
+    end
   end
 
   describe "index_and_enqueue_download_for_media_items/2 when testing cookies" do
